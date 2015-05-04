@@ -33,18 +33,63 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener
 	
 	private int count = 0;
 	private int clock = 0;
+	//private People[] people;
 
-	private Thread masterT = new Thread(new MyTimer());//<-- the loop/timer thread
+	//new code i added start here
+	private Thread masterT = new Thread(new masterLoop());//<-- the loop/timer thread
 	private boolean running;
-
-	//<--use this to start the loop/new timer
-	public void startLoop() { masterT.start(); }
-	//<-- use this to stop it.
-	public void stopLoop() { running = false; }
+	public void startLoop() //<--use this to start the loop/new timer
+	{
+		masterT.start();
+	}
 	
-	//the new timer will trigger this method, running at around 60fps
+	public void stopLoop() //<-- use this to stop it.
+	{
+		running = false;
+	}
+	
+	class masterLoop implements Runnable
+	{   //tweek ups and fps if you wish
+		private double ups = 60, fps = 60, lastUpdate = System.nanoTime(), lastRender = System.nanoTime();
+		private int maxRenderDelay = 2;
+		public void run()
+		{
+			double tPerFps = 1000000000 / fps, tPerUps = 1000000000 / ups, curTime;
+			running = true;
+			while (running)
+			{
+				curTime = System.nanoTime();
+				int updateNum = 0;
+				while (curTime - lastUpdate > tPerUps && updateNum < maxRenderDelay)
+				{
+					update();   //<-- move all your collision, spawning, movment calculations in this update method.
+					updateNum++;
+					lastUpdate += tPerUps;
+				}
+				curTime = System.nanoTime();
+				game.repaint();
+				revalidate();
+				lastRender = curTime;
+				while (curTime - lastRender < tPerFps && curTime - lastUpdate < tPerUps)
+				{
+					Thread.yield();
+					try
+					{
+						Thread.sleep(0, 999999);
+					}
+					catch (Exception e)
+					{
+					}
+					curTime = System.nanoTime();
+				}
+			}
+		}
+	}
+	
 	public void update()
 	{
+		// move all your collision, spawning, movment calculations in this update method. (a good way to start is to move everything from actionPerformed that is originally called by the timers here)
+		//i dont understand your code enough to do it for you
 		if(player)
 		{
 			if (w) y -= SPEED; //inverted, y goes "up"
@@ -121,12 +166,22 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener
 		}
 		if (!start)
 		{
-			name = njt.getText(); //get the text entered
-			remove(njt);
-			add(game);
-			game.setBounds(160, 90, 960, 540);
-			game.setBorder(BorderFactory.createLineBorder(Color.black));
-			start = true;
+			if (fieldpos >= 820) //this means that the button is out of the screen, so we can remove it
+			{
+				name = njt.getText();
+				remove(njt);
+				add(game);
+				game.setBounds(160, 90, 960, 540);
+				game.setBorder(BorderFactory.createLineBorder(Color.black));
+				start = true;
+			}
+			else //otherwise keep animating using the formula fieldpos
+			{
+				ms++;
+				fieldpos = (int)((-15)*(ms) + 0.5*5.8*ms*ms) + 345; //calculate the y position of the button using the animation
+				caption.setBounds(490, fieldpos, 120, 30);
+				njt.setBounds(610, fieldpos, 180, 30); //redraw the button using setBounds
+			}
 			//redraw and revalidate everything
 			requestFocus();
 			master.start();
@@ -135,6 +190,8 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener
 			player = true;
 		}
 	}
+	
+	//end of new code
 	
 	public GamePanel()
 	{
@@ -254,6 +311,10 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener
 			if(clock % 50 == 0)
 				health = Math.min(health+1, 100);
 		}
+
+
+		//all fast-paced animations
+		
 
 		//generate power up
 		if (e.getSource() == powergen)
@@ -385,39 +446,6 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener
 		public int compare(People a, People d)
 		{
 			return (a.x - d.x);
-		}
-	}
-
-	class MyTimer implements Runnable
-	{
-		private double ups = 60, fps = 60, lastUpdate = System.nanoTime(), lastRender = System.nanoTime();
-		private int maxRenderDelay = 2;
-		public void run()
-		{
-			double tPerFps = 1000000000 / fps, tPerUps = 1000000000 / ups, curTime;
-			running = true;
-			while (running)
-			{
-				curTime = System.nanoTime();
-				int updateNum = 0;
-				while (curTime - lastUpdate > tPerUps && updateNum < maxRenderDelay)
-				{
-					update();   //<-- move all your collision, spawning, movment calculations in this update method.
-					updateNum++;
-					lastUpdate += tPerUps;
-				}
-				curTime = System.nanoTime();
-				game.repaint();
-				revalidate();
-				lastRender = curTime;
-				while (curTime - lastRender < tPerFps && curTime - lastUpdate < tPerUps)
-				{
-					Thread.yield();
-					try { Thread.sleep(0, 999999); }
-					catch (Exception e) {}
-					curTime = System.nanoTime();
-				}
-			}
 		}
 	}
 }
